@@ -11,6 +11,7 @@ from reamber.osu.OsuMap import OsuMap
 from reamber.algorithms.playField import PlayField
 from reamber.algorithms.playField.parts import PFDrawColumnLines, PFDrawBeatLines, PFDrawBpm, PFDrawSv, PFDrawNotes
 
+typeName = ""
 osuFiles=[]
 active_osu_file = ""
 base_path = ""
@@ -45,6 +46,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def loadButtonClicked(self):
         fname = QFileDialog.getOpenFileName(self, "打开osu铺面文件或osz压缩文件", '', "Osu zip files (*.osz);;Osu Beatmap Files (*.osu)", "Osu zip files (*.osz)")
         self.lineEdit_file.setText(fname[0])
+        global typeName
         typeName = fname[0].split(".")[-1]
         global osuFiles
         osuFiles = []
@@ -226,10 +228,12 @@ def generate_preview_pic(file):
     return picPath
 
 def cleanOsuFile():
+    global typeName
+    if typeName == "osu":
+        return
     global osuFiles
     for extractedOsuFile in osuFiles:
         os.remove(extractedOsuFile)
-    return
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
