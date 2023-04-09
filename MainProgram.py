@@ -189,6 +189,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 for path, dirNames, fileNames in os.walk(temp_path):
                     fpath = path.replace(temp_path, '')
                     for file in fileNames:
+                        if file.endswith(".mc") or file.endswith(".mc_"):continue
                         new_osz_zip.write(os.path.join(path, file), os.path.join(fpath, file))
             for root, dirs, files in os.walk(temp_path, topdown=False):
                 for name in files:
