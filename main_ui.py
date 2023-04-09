@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QLabel, QLineEdit, QListView,
-    QMainWindow, QMenuBar, QPushButton, QSizePolicy,
-    QStatusBar, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QLabel, QLineEdit,
+    QListView, QMainWindow, QMenuBar, QPushButton,
+    QSizePolicy, QStatusBar, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -99,6 +99,13 @@ class Ui_MainWindow(object):
         self.generateButton = QPushButton(self.centralwidget)
         self.generateButton.setObjectName(u"generateButton")
         self.generateButton.setGeometry(QRect(370, 390, 75, 24))
+        self.checkBox_bNewFile = QCheckBox(self.centralwidget)
+        self.checkBox_bNewFile.setObjectName(u"checkBox_bNewFile")
+        self.checkBox_bNewFile.setGeometry(QRect(380, 530, 91, 20))
+        self.checkBox_bNewFile.setChecked(True)
+        self.pushButton_mc2osu = QPushButton(self.centralwidget)
+        self.pushButton_mc2osu.setObjectName(u"pushButton_mc2osu")
+        self.pushButton_mc2osu.setGeometry(QRect(370, 460, 131, 24))
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
@@ -128,5 +135,7 @@ class Ui_MainWindow(object):
         self.label_od.setText(QCoreApplication.translate("MainWindow", u"OD", None))
         self.label_bg.setText("")
         self.generateButton.setText(QCoreApplication.translate("MainWindow", u"\u751f\u6210\u9884\u89c8", None))
+        self.checkBox_bNewFile.setText(QCoreApplication.translate("MainWindow", u"\u50a8\u5b58\u4e3a\u65b0\u6587\u4ef6", None))
+        self.pushButton_mc2osu.setText(QCoreApplication.translate("MainWindow", u".mc/.mcz\u8f6c.osu/.osz", None))
     # retranslateUi
 

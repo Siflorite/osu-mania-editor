@@ -1,5 +1,5 @@
 import sys
-from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QLabel
+from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QLabel, QMessageBox
 from PySide6.QtCore import QStringListModel
 
 from PySide6.QtGui import QPixmap
@@ -7,6 +7,8 @@ from main_ui import Ui_MainWindow
 import os
 import zipfile
 import hashlib
+import json
+import math
 
 from reamber.osu.OsuMap import OsuMap
 from reamber.algorithms.playField import PlayField
@@ -38,6 +40,7 @@ pic = ""
 HP = 0
 Keys = 0
 OD = 0
+bNewFile = True
 
 class MyMainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
@@ -47,6 +50,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.saveButton.clicked.connect(self.saveButtonClicked)
         self.listView_osulist.clicked.connect(self.osulistClicked)
         self.generateButton.clicked.connect(self.generateButtonClicked)
+        self.pushButton_mc2osu.clicked.connect(self.ButtonMC2OSUClickeed)
+        self.checkBox_bNewFile.clicked.connect(self.checkBoxBNewFileClicked)
         self.lineEdit_title.textChanged.connect(self.lineEditTitleModified)
         self.lineEdit_title_unicode.textChanged.connect(self.lineEditTitleUnicodeModified)
         self.lineEdit_artist.textChanged.connect(self.lineEditArtistModified)
@@ -59,6 +64,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
     def loadButtonClicked(self):
         fname = QFileDialog.getOpenFileName(self, "打开osu铺面文件或osz压缩文件", '', "Osu zip files (*.osz);;Osu Beatmap Files (*.osu)", "Osu zip files (*.osz)")
+        if(fname[0] == ""):
+            return
         self.lineEdit_file.setText(fname[0])
         global typeName
         typeName = fname[0].split(".")[-1]
@@ -148,6 +155,57 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.label_pre.setGeometry(0, 0, pixmap.size().width(), pixmap.size().height())
         self.label_pre.setPixmap(pixmap)
         self.label_pre.show()
+    
+    def ButtonMC2OSUClickeed(self):
+        fname = QFileDialog.getOpenFileName(self, "打开mc谱面文件或mcz压缩文件", '', "Malody Chart zip Files (*.mcz);;Malody Chart Files (*.mc)", "Malody Chart zip Files (*.mcz)")
+        if(fname[0] == ""):
+            return
+        OriginalFilePath = fname[0]
+        ChartDir = os.path.dirname(OriginalFilePath)
+        ChartType = os.path.splitext(OriginalFilePath)[-1]
+        if ChartType == ".mc":
+            analyzeMCFile(OriginalFilePath)
+            dlg = QMessageBox()
+            dlg.setWindowTitle("提示")
+            dlg.setText(".osu文件已保存至" + os.path.splitext(OriginalFilePath)[0] + ".osu")
+            dlg.setStandardButtons(QMessageBox.Yes)
+            dlg.exec()
+        else:
+            temp_path = ChartDir + "/temp"
+            mc_file_name = []
+            with zipfile.ZipFile(OriginalFilePath, 'r') as mcz_zip:
+                for file_name in mcz_zip.namelist():
+                    mcz_zip.extract(file_name, temp_path)
+                    if file_name.endswith(".mc"):
+                        mc_file_name.append(file_name)
+            for item in mc_file_name:
+                mc_file = os.path.join(temp_path, item)
+                analyzeMCFile(mc_file)
+
+            GeneratedOszFile = os.path.splitext(OriginalFilePath)[0] + ".osz"
+            if os.path.exists(GeneratedOszFile):
+                os.remove(GeneratedOszFile)
+            with zipfile.ZipFile(GeneratedOszFile, 'w', zipfile.ZIP_DEFLATED) as new_osz_zip:
+                for path, dirNames, fileNames in os.walk(temp_path):
+                    fpath = path.replace(temp_path, '')
+                    for file in fileNames:
+                        new_osz_zip.write(os.path.join(path, file), os.path.join(fpath, file))
+            for root, dirs, files in os.walk(temp_path, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root,name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
+            os.rmdir(temp_path)
+            dlg = QMessageBox()
+            dlg.setWindowTitle("提示")
+            dlg.setText(".osz文件已保存至" + GeneratedOszFile)
+            dlg.setStandardButtons(QMessageBox.Yes)
+            dlg.exec()
+
+
+    def checkBoxBNewFileClicked(self):
+        global bNewFile
+        bNewFile = self.checkBox_bNewFile.isChecked()
     
     def lineEditTitleModified(self):
         global title
@@ -352,7 +410,11 @@ def check_md5(file1, file2):
 def saveOszFile(FilePath):
     oszBasePathDir = os.path.dirname(FilePath)
     OriginalOszName = os.path.split(FilePath)[1]
-    ModifiedOszName = os.path.splitext(OriginalOszName)[0] + "_modified" + os.path.splitext(OriginalOszName)[1]
+    modifiedStr = ""
+    global bNewFile
+    if(bNewFile):
+        modifiedStr = "_modified"
+    ModifiedOszName = os.path.splitext(OriginalOszName)[0] + modifiedStr + os.path.splitext(OriginalOszName)[1]
     ModifiedOszPath = oszBasePathDir + "/" + ModifiedOszName
     print(ModifiedOszPath)
     if os.path.exists(ModifiedOszPath):
@@ -363,8 +425,8 @@ def saveOszFile(FilePath):
             fpath = path.replace(base_path, '')
             for file in fileNames:
                 new_osz_zip.write(os.path.join(path, file), os.path.join(fpath, file))
-    if(check_md5(FilePath, ModifiedOszPath)):
-        os.remove(ModifiedOszPath)
+    # if(check_md5(FilePath, ModifiedOszPath)):
+    #     os.remove(ModifiedOszPath)
         
 
 def generate_preview_pic(file):
@@ -385,12 +447,160 @@ def generate_preview_pic(file):
     picPath = base_path + "/" + title + " " + version +" preview.png"
     return picPath
 
+def analyzeMCFile(FilePath):
+    print(FilePath)
+    with open(FilePath, "r", encoding="UTF-8") as f:
+        mcfile = json.load(f)
+    creator = mcfile["meta"]["creator"]
+    background = mcfile["meta"]["background"]
+    version = mcfile["meta"]["version"]
+    mode = mcfile["meta"]["mode"] # 0 for Key mode
+    if mode != 0:
+        dlg = QMessageBox()
+        dlg.setWindowTitle("提示")
+        dlg.setText("本软件只支持编辑Key模式的Malody谱面！\nThis program only supports Malody Chart in Key Mode!")
+        dlg.setStandardButtons(QMessageBox.Yes)
+        dlg.setIcon(QMessageBox.warning)
+        dlg.exec()
+        return
+    title = mcfile["meta"]["song"]["title"] # This is the Unicode Version (that allows non-ascii characters)
+    artist = mcfile["meta"]["song"]["artist"] # Ditto
+    titleOrg = mcfile["meta"]["song"]["titleorg"] if "titleorg" in mcfile["meta"]["song"] else title
+    # I guess this means Original and may not be available in every chart
+    artistOrg = mcfile["meta"]["song"]["artistorg"] if "artistorg" in mcfile["meta"]["song"] else artist
+    Keys = mcfile["meta"]["mode_ext"]["column"]
+    bpmList = mcfile["time"]
+    bpmBase = mcfile["time"][0]["bpm"]
+    effectList = mcfile["effect"]
+    noteList = mcfile["note"]
+    sound = mcfile["note"][-1]["sound"]
+    offsetMs = mcfile["note"][-1]["offset"]
+    noteList = noteList[0:-1]
+    
+    # Produce Osu File [General], [Metadata], [Difficulty], [Events]
+    General = []
+    General.append("osu file format v14\n\n[General]\n")
+    General.append("AudioFilename:" + sound + "\n")
+    General.append("AudioLeadin:" + str(0) +"\n")
+    General.append("PreviewTime:-1\nCountdown:0\nSampleSet: Soft\nStackLeniency:0.7\nMode:3\nLetterboxInBreaks:0\nSpecialStyle:0\nWidescreenStoryboard:1\n\n")
+
+    Editor = []
+    Editor.append("[Editor]\nDistanceSpacing:1\nBeatDivisor:8\nGridSize:4\nTimelineZoom:2\n\n")
+
+    Metadata = []
+    Metadata.append("[Metadata]\n")
+    Metadata.append("Title:" + titleOrg + "\n")
+    Metadata.append("TitleUnicode:" + title + "\n")
+    Metadata.append("Artist:" + artistOrg + "\n")
+    Metadata.append("ArtistUnicode:" + artist + "\n")
+    Metadata.append("Creator:" + creator + "\n")
+    Metadata.append("Version:" + version + "\n")
+    Metadata.append("Source:\nTags:\nBeatmapID:0\nBeatmapSetID:-1\n\n")
+
+    Difficulty = []
+    Difficulty.append("[Difficulty]\n")
+    Difficulty.append("HPDrainRate:8\n")
+    Difficulty.append("CircleSize:" + str(Keys) +"\n")
+    Difficulty.append("OverallDifficulty:8\n")
+    Difficulty.append("ApproachRate:5\nSliderMultiplier:1.4\nSliderTickRate:1\n\n")
+
+    Events = []
+    Events.append("[Events]\n")
+    Events.append("//Background and Video events\n")
+    Events.append("0,0,\"" + background + "\",0,0\n")
+    Events.append("//Break Periods\n//Storyboard Layer 0 (Background)\n//Storyboard Layer 1 (Fail)\n//Storyboard Layer 2 (Pass)\n//Storyboard Layer 3 (Foreground)\n//Storyboard Layer 4 (Overlay)\n//Storyboard Sound Samples\n\n")
+    
+    # Produce [TimingPoints] (bpmList and effectList)
+    TimingPointsList = []
+    TimingPointsList.append("[TimingPoints]\n")
+    curTime = -offsetMs
+    CurBeat = float(bpmList[0]["beat"][0] + bpmList[0]["beat"][1] / bpmList[0]["beat"][2])
+    LastBeat = CurBeat
+    MsPerBeat = 60 * 1000 / bpmBase
+    indexEffect = 0
+    BPMCheckList =[]
+    for item in bpmList:
+        CurBeat = float(item["beat"][0] + item["beat"][1] / item["beat"][2])
+        while(indexEffect < len(effectList)):
+            effectBeatList = effectList[indexEffect]["beat"]
+            effectBeat = float(effectBeatList[0] + effectBeatList[1] / effectBeatList[2])
+            if effectBeat < CurBeat and effectBeat >= LastBeat:
+                effectTime = curTime + (effectBeat - LastBeat) * MsPerBeat
+                TimingPointsList.append(str(int(effectTime)) + "," + str(float(-100/effectList[indexEffect]["scroll"])) + ",4,2,0,10,1,0\n")
+                indexEffect += 1
+            else:
+                break
+        curTime += (CurBeat - LastBeat) * MsPerBeat
+        MsPerBeat = 60 * 1000 / item["bpm"]
+        BPMCheckList.append([CurBeat, MsPerBeat])
+        TimingPointsList.append(str(int(curTime)) + "," + str(MsPerBeat) + ",4,2,0,10,1,0\n")
+        LastBeat = CurBeat
+    while(indexEffect < len(effectList)):
+        effectBeatList = effectList[indexEffect]["beat"]
+        effectBeat = float(effectBeatList[0] + effectBeatList[1] / effectBeatList[2])
+        effectTime = curTime + (effectBeat - LastBeat - 1) * MsPerBeat
+        TimingPointsList.append(str(int(effectTime)) + "," + str(float(-100/effectList[indexEffect]["scroll"])) + ",4,2,0,10,1,0\n")
+        indexEffect += 1
+    TimingPointsList.append("\n")
+
+    # Produce [HitObjects] (notList)
+    HitObjectsList = []
+    HitObjectsList.append("[HitObjects]\n")
+
+    def fromBeatGetMs(Beat):
+        time = -offsetMs
+        BeatIndex = 1
+        curBPMBeat = BPMCheckList[0][0]
+        nextBPMBeat = BPMCheckList[BeatIndex][0] if len(BPMCheckList) > 1 else curBPMBeat
+        curMsPerBeat = BPMCheckList[0][1]
+        while(Beat > nextBPMBeat and BeatIndex - 1 < len(BPMCheckList)):
+            time += curMsPerBeat * (nextBPMBeat - curBPMBeat)
+            curBPMBeat = nextBPMBeat
+            curMsPerBeat = BPMCheckList[BeatIndex][1] if len(BPMCheckList) > 1 else curMsPerBeat
+            BeatIndex += 1
+            if(BeatIndex >= len(BPMCheckList)): break
+            nextBPMBeat = BPMCheckList[BeatIndex][0]
+        time += (Beat - curBPMBeat) * curMsPerBeat
+        return time
+
+    for item in noteList:
+        itemBeat = float(item["beat"][0] + item["beat"][1] / item["beat"][2])
+        BeatTime = fromBeatGetMs(itemBeat)
+        XPos = setXFromColumn(item["column"], Keys)
+        if "endbeat" in item:
+            itemBeatend = float(item["endbeat"][0] + item["endbeat"][1] / item["endbeat"][2])
+            BeatendTime = fromBeatGetMs(itemBeatend)
+            HitObjectsList.append(str(int(XPos)) + ",192," + str(int(BeatTime)) + ",128,0," + str(int(BeatendTime)) + ",0:0:0:0:\n")
+        else:
+            HitObjectsList.append(str(int(XPos)) + ",192," + str(int(BeatTime)) + ",1,0,0:0:0:0:\n")
+    HitObjectsList.append("\n")
+        
+    FinalFile = General + Editor + Metadata + Difficulty + Events + TimingPointsList + HitObjectsList
+    (file_path, file_name) = os.path.split(FilePath)
+    (name, suffix) = os.path.splitext(file_name)
+    TransferredOsuPath = os.path.join(file_path, str(name + ".osu"))
+    if os.path.exists(TransferredOsuPath):
+        os.remove(TransferredOsuPath)
+    with open(file = TransferredOsuPath, mode = "w", encoding = "utf-8") as OsuFileWrite:
+        for l in FinalFile:
+            OsuFileWrite.write(l)
+
+
+def setXFromColumn(Col, Keys):
+    return math.floor((Col + 0.5) * 512 / Keys)
+
+def ColumnFromX(X, Keys):
+    return math.floor(X * Keys / 512)
+
+
 def cleanOsuFile():
     saveOsuFile(bSaveOsz=True)
     global typeName
     if typeName == "osu":
         return
     global base_path
+    if base_path == "":
+        return
     for root, dirs, files in os.walk(base_path, topdown=False):
         for name in files:
             os.remove(os.path.join(root,name))
