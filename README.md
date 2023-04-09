@@ -10,4 +10,5 @@ The preview module is completed mainly using [reamber module](https://github.com
 
 预览功能主要通过[reamber模块](https://github.com/Eve-ning/reamberPy)实现（需要自行pip install），在这里由衷感谢Evening等人对音乐游戏社区做出的贡献！  
 
-+ Version 0.1 at 2023.4.8: Load function complete, generate preview function complete.加载功能实现，预览功能实现。  
++ Version 0.1 at 2023.04.08: Load function complete, generate preview function complete. 加载功能实现，预览功能实现。  
++ Version 0.2.0 at 2023.04.09: Save osz function complete, background image display function complete. 实现了保存到osz和显示谱面背景图的功能。
