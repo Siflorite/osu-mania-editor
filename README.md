@@ -10,4 +10,4 @@ The preview module is completed mainly using [reamber module](https://github.com
 
 预览功能主要通过[reamber模块](https://github.com/Eve-ning/reamberPy)实现（需要自行pip install），在这里由衷感谢Evening等人对音乐游戏社区做出的贡献！  
 
-Version 0.1 at 2023.4.8: Load function complete, generate preview function complete.加载功能实现，预览功能实现。  
++ Version 0.1 at 2023.4.8: Load function complete, generate preview function complete.加载功能实现，预览功能实现。  
