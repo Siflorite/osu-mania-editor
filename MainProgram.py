@@ -528,7 +528,9 @@ def analyzeMCFile(FilePath):
             effectBeat = float(effectBeatList[0] + effectBeatList[1] / effectBeatList[2])
             if effectBeat < CurBeat and effectBeat >= LastBeat:
                 effectTime = curTime + (effectBeat - LastBeat) * MsPerBeat
-                if effectList[indexEffect]["scroll"] < 0 : continue
+                if effectList[indexEffect]["scroll"] < 0 : 
+                    indexEffect += 1
+                    continue
                 TimingPointsList.append(str(int(effectTime)) + "," + str(round(float(-100/effectList[indexEffect]["scroll"]), 12)) + ",4,2,0,10,1,0\n")
                 indexEffect += 1
             else:
@@ -542,7 +544,9 @@ def analyzeMCFile(FilePath):
         effectBeatList = effectList[indexEffect]["beat"]
         effectBeat = float(effectBeatList[0] + effectBeatList[1] / effectBeatList[2])
         effectTime = curTime + (effectBeat - LastBeat - 1) * MsPerBeat
-        if effectList[indexEffect]["scroll"] < 0 : continue
+        if effectList[indexEffect]["scroll"] < 0 :
+            indexEffect += 1 
+            continue
         TimingPointsList.append(str(int(effectTime)) + "," + str(round(float(-100/effectList[indexEffect]["scroll"]), 12)) + ",4,2,0,10,1,0\n")
         indexEffect += 1
     TimingPointsList.append("\n")
