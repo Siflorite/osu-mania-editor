@@ -10,5 +10,9 @@ The preview module is completed mainly using [reamber module](https://github.com
 
 预览功能主要通过[reamber模块](https://github.com/Eve-ning/reamberPy)实现（需要自行pip install），在这里由衷感谢Evening等人对音乐游戏社区做出的贡献！  
 
+You can get all previous versions here: 过去的版本可以在此下载：  
+[https://disk.monokhrom.com/zh-CN/6K/Software/osu-mania-editor/](https://disk.monokhrom.com/zh-CN/6K/Software/osu-mania-editor/)
+
 + Version 0.1 at 2023.04.08: Load function complete, generate preview function complete. 加载功能实现，预览功能实现。  
 + Version 0.2.0 at 2023.04.09: Save osz function complete, background image display function complete. 实现了保存到osz和显示谱面背景图的功能。
++ Version 0.3.1 at 2023.04.10: Malody Chart to Osu Map convertion function complete. 实现了Malody铺面转osu铺面的功能。  
