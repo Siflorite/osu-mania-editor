@@ -482,7 +482,7 @@ def analyzeMCFile(FilePath):
     General = []
     General.append("osu file format v14\n\n[General]\n")
     General.append("AudioFilename:" + sound + "\n")
-    General.append("AudioLeadin:" + str(0) +"\n")
+    General.append("AudioLeadIn:" + str(0) +"\n")
     General.append("PreviewTime:-1\nCountdown:0\nSampleSet: Soft\nStackLeniency:0.7\nMode:3\nLetterboxInBreaks:0\nSpecialStyle:0\nWidescreenStoryboard:1\n\n")
 
     Editor = []
@@ -508,7 +508,8 @@ def analyzeMCFile(FilePath):
     Events = []
     Events.append("[Events]\n")
     Events.append("//Background and Video events\n")
-    Events.append("0,0,\"" + background + "\",0,0\n")
+    if background != "":
+        Events.append("0,0,\"" + background + "\",0,0\n")
     Events.append("//Break Periods\n//Storyboard Layer 0 (Background)\n//Storyboard Layer 1 (Fail)\n//Storyboard Layer 2 (Pass)\n//Storyboard Layer 3 (Foreground)\n//Storyboard Layer 4 (Overlay)\n//Storyboard Sound Samples\n\n")
     
     # Produce [TimingPoints] (bpmList and effectList)
@@ -527,20 +528,22 @@ def analyzeMCFile(FilePath):
             effectBeat = float(effectBeatList[0] + effectBeatList[1] / effectBeatList[2])
             if effectBeat < CurBeat and effectBeat >= LastBeat:
                 effectTime = curTime + (effectBeat - LastBeat) * MsPerBeat
-                TimingPointsList.append(str(int(effectTime)) + "," + str(float(-100/effectList[indexEffect]["scroll"])) + ",4,2,0,10,1,0\n")
+                if effectList[indexEffect]["scroll"] < 0 : continue
+                TimingPointsList.append(str(int(effectTime)) + "," + str(round(float(-100/effectList[indexEffect]["scroll"]), 12)) + ",4,2,0,10,1,0\n")
                 indexEffect += 1
             else:
                 break
         curTime += (CurBeat - LastBeat) * MsPerBeat
         MsPerBeat = 60 * 1000 / item["bpm"]
         BPMCheckList.append([CurBeat, MsPerBeat])
-        TimingPointsList.append(str(int(curTime)) + "," + str(MsPerBeat) + ",4,2,0,10,1,0\n")
+        TimingPointsList.append(str(int(curTime)) + "," + str(round(MsPerBeat, 12)) + ",4,2,0,10,1,0\n")
         LastBeat = CurBeat
     while(indexEffect < len(effectList)):
         effectBeatList = effectList[indexEffect]["beat"]
         effectBeat = float(effectBeatList[0] + effectBeatList[1] / effectBeatList[2])
         effectTime = curTime + (effectBeat - LastBeat - 1) * MsPerBeat
-        TimingPointsList.append(str(int(effectTime)) + "," + str(float(-100/effectList[indexEffect]["scroll"])) + ",4,2,0,10,1,0\n")
+        if effectList[indexEffect]["scroll"] < 0 : continue
+        TimingPointsList.append(str(int(effectTime)) + "," + str(round(float(-100/effectList[indexEffect]["scroll"]), 12)) + ",4,2,0,10,1,0\n")
         indexEffect += 1
     TimingPointsList.append("\n")
 
@@ -563,6 +566,12 @@ def analyzeMCFile(FilePath):
             nextBPMBeat = BPMCheckList[BeatIndex][0]
         time += (Beat - curBPMBeat) * curMsPerBeat
         return time
+    
+    itemBeat = float(noteList[0]["beat"][0] + noteList[0]["beat"][1] / noteList[0]["beat"][2])
+    BeatTime = fromBeatGetMs(itemBeat)
+    FirstTimingPoint = TimingPointsList[1].split(",")
+    FirstTimingPoint[0] = str(int(BeatTime))
+    TimingPointsList[1] = ",".join(FirstTimingPoint)
 
     for item in noteList:
         itemBeat = float(item["beat"][0] + item["beat"][1] / item["beat"][2])
@@ -571,10 +580,12 @@ def analyzeMCFile(FilePath):
         if "endbeat" in item:
             itemBeatend = float(item["endbeat"][0] + item["endbeat"][1] / item["endbeat"][2])
             BeatendTime = fromBeatGetMs(itemBeatend)
-            HitObjectsList.append(str(int(XPos)) + ",192," + str(int(BeatTime)) + ",128,0," + str(int(BeatendTime)) + ",0:0:0:0:\n")
+            HitObjectsList.append(str(int(XPos)) + ",192," + str(int(BeatTime)) + ",128,0," + str(int(BeatendTime)) + ":0:0:0:0:\n")
         else:
             HitObjectsList.append(str(int(XPos)) + ",192," + str(int(BeatTime)) + ",1,0,0:0:0:0:\n")
-    HitObjectsList.append("\n")
+    FirstHitObjectList = HitObjectsList[1].split(",")
+    FirstHitObjectList[3] = "5"
+    HitObjectsList[1] = ",".join(FirstHitObjectList)
         
     FinalFile = General + Editor + Metadata + Difficulty + Events + TimingPointsList + HitObjectsList
     (file_path, file_name) = os.path.split(FilePath)
