@@ -6,6 +6,7 @@ from PySide6.QtGui import QPixmap
 from main_ui import Ui_MainWindow
 import os
 import zipfile
+from zipfile import ZipFile
 import hashlib
 import json
 import math
@@ -185,13 +186,10 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         else:
             temp_path = ChartDir + "/temp"
             mc_file_name = []
-            with zipfile.ZipFile(OriginalFilePath, 'r') as mcz_zip:
+            with zipfileDecodingSupport(ZipFile(OriginalFilePath, 'r')) as mcz_zip:
                 for file_name in mcz_zip.namelist():
                     new_file_name = file_name
-                    # try:
-                    #     new_file_name = new_file_name.decode('utf-8')
-                    # except:
-                    #     new_file_name = new_file_name.decode('gbk')
+                    print(new_file_name)
                     mcz_zip.extract(new_file_name, temp_path)
                     if file_name.endswith(".mc"):
                         mc_file_name.append(file_name)
@@ -202,7 +200,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             GeneratedOszFile = os.path.splitext(OriginalFilePath)[0] + ".osz"
             if os.path.exists(GeneratedOszFile):
                 os.remove(GeneratedOszFile)
-            with zipfile.ZipFile(GeneratedOszFile, 'w', zipfile.ZIP_DEFLATED) as new_osz_zip:
+            with zipfileDecodingSupport(ZipFile(GeneratedOszFile, 'w', zipfile.ZIP_DEFLATED)) as new_osz_zip:
                 for path, dirNames, fileNames in os.walk(temp_path):
                     fpath = path.replace(temp_path, '')
                     for file in fileNames:
@@ -316,6 +314,30 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             OD_str = str(OD)
         self.lineEdit_od.setText(OD_str)
 
+# A patch to support gbk for Chinese and shift-jis for Japanese
+def zipfileDecodingSupport(zip_file: ZipFile):
+    nameToInfo = zip_file.NameToInfo
+    for name, info in nameToInfo.copy().items():
+        try:
+            real_name = name.encode('cp437').decode('utf-8')
+            print("cp437->utf8")
+        except:
+            try:
+                real_name = name.encode('cp437').decode('gb2312')
+                print("cp437->gbk")
+            except:
+                try:
+                    real_name = name.encode('cp437').decode('shift-jis')
+                    print("cp437->jis")
+                except:
+                    real_name = name
+        if real_name != name:
+            info.filename = real_name
+            del nameToInfo[name]
+            nameToInfo[real_name] = info
+    return zip_file # Modified zipfile module to support multi-decoding
+        
+
 def clamp(num, minn, maxn):
     return max(min(num, max(minn, maxn)), min(minn, maxn))
 
@@ -325,7 +347,7 @@ def extractOsz(FilePath):
     base_path = dirName + "/temp"
     global osu_file_name
     osu_file_name = []
-    with zipfile.ZipFile(FilePath, 'r') as osz_zip:
+    with zipfileDecodingSupport(ZipFile(FilePath, 'r')) as osz_zip:
         for file_name in osz_zip.namelist():
             new_file_name = file_name
             # try:
@@ -443,7 +465,7 @@ def saveOszFile(FilePath):
     if os.path.exists(ModifiedOszPath):
         os.remove(ModifiedOszPath)
     global base_path
-    with zipfile.ZipFile(ModifiedOszPath, 'w', zipfile.ZIP_DEFLATED) as new_osz_zip:
+    with zipfileDecodingSupport(ZipFile(ModifiedOszPath, 'w', zipfile.ZIP_DEFLATED)) as new_osz_zip:
         for path, dirNames, fileNames in os.walk(base_path):
             fpath = path.replace(base_path, '')
             for file in fileNames:
@@ -498,7 +520,7 @@ def analyzeMCFile(FilePath):
     effectList = mcfile["effect"]
     noteList = mcfile["note"]
     sound = mcfile["note"][-1]["sound"]
-    offsetMs = mcfile["note"][-1]["offset"]
+    offsetMs = mcfile["note"][-1]["offset"] if "offset" in mcfile["note"][-1] else 0
     noteList = noteList[0:-1]
     
     # Produce Osu File [General], [Metadata], [Difficulty], [Events]
@@ -554,7 +576,8 @@ def analyzeMCFile(FilePath):
                 if effectList[indexEffect]["scroll"] < 0 : 
                     indexEffect += 1
                     continue
-                TimingPointsList.append(str(int(effectTime)) + "," + str(round(float(-100/effectList[indexEffect]["scroll"]), 12)) + ",4,2,0,10,1,0\n")
+                speedVariation = round(float(-100/effectList[indexEffect]["scroll"]), 12) if effectList[indexEffect]["scroll"] !=0 else -100000000
+                TimingPointsList.append(str(int(effectTime)) + "," + '%.15g'%speedVariation + ",4,2,0,10,0,0\n")
                 indexEffect += 1
             else:
                 break
@@ -570,7 +593,8 @@ def analyzeMCFile(FilePath):
         if effectList[indexEffect]["scroll"] < 0 :
             indexEffect += 1 
             continue
-        TimingPointsList.append(str(int(effectTime)) + "," + str(round(float(-100/effectList[indexEffect]["scroll"]), 12)) + ",4,2,0,10,1,0\n")
+        speedVariation = round(float(-100/effectList[indexEffect]["scroll"]), 12) if effectList[indexEffect]["scroll"] !=0 else -100000000
+        TimingPointsList.append(str(int(effectTime)) + "," + '%.15g'%speedVariation + ",4,2,0,10,0,0\n")
         indexEffect += 1
     TimingPointsList.append("\n")
 
