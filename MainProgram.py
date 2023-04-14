@@ -157,7 +157,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         pixmap = QPixmap(str(previewPic))
         size = pixmap.size()
         pixmap = pixmap.scaled(size/2)
-
         self.label_pre = QLabel()
         self.label_pre.setGeometry(0, 0, pixmap.size().width(), pixmap.size().height())
         self.label_pre.setPixmap(pixmap)
@@ -170,53 +169,52 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         dlg.exec()
     
     def ButtonMC2OSUClickeed(self):
-        fname = QFileDialog.getOpenFileName(self, "打开mc谱面文件或mcz压缩文件", '', "Malody Chart zip Files (*.mcz);;Malody Chart Files (*.mc)", "Malody Chart zip Files (*.mcz)")
-        if(fname[0] == ""):
+        fname = QFileDialog.getOpenFileNames(self, "打开mc谱面文件或mcz压缩文件", '', "Malody Chart zip Files (*.mcz);;Malody Chart Files (*.mc)", "Malody Chart zip Files (*.mcz)")
+        if(fname[0] == []):
             return
-        OriginalFilePath = fname[0]
-        ChartDir = os.path.dirname(OriginalFilePath)
-        ChartType = os.path.splitext(OriginalFilePath)[-1]
-        if ChartType == ".mc":
-            analyzeMCFile(OriginalFilePath)
-            dlg = QMessageBox()
-            dlg.setWindowTitle("提示")
-            dlg.setText(".osu文件已保存至" + os.path.splitext(OriginalFilePath)[0] + ".osu")
-            dlg.setStandardButtons(QMessageBox.Yes)
-            dlg.exec()
-        else:
-            temp_path = ChartDir + "/temp"
-            mc_file_name = []
-            with zipfileDecodingSupport(ZipFile(OriginalFilePath, 'r')) as mcz_zip:
-                for file_name in mcz_zip.namelist():
-                    new_file_name = file_name
-                    print(new_file_name)
-                    mcz_zip.extract(new_file_name, temp_path)
-                    if file_name.endswith(".mc"):
-                        mc_file_name.append(file_name)
-            for item in mc_file_name:
-                mc_file = os.path.join(temp_path, item)
-                analyzeMCFile(mc_file)
+        for OriginalFilePath in fname[0]:
+            ChartDir = os.path.dirname(OriginalFilePath)
+            ChartType = os.path.splitext(OriginalFilePath)[-1]
+            if ChartType == ".mc":
+                analyzeMCFile(OriginalFilePath)
+                dlg = QMessageBox()
+                dlg.setWindowTitle("提示")
+                dlg.setText(".osu文件已保存至" + os.path.splitext(OriginalFilePath)[0] + ".osu")
+                dlg.setStandardButtons(QMessageBox.Yes)
+                dlg.exec()
+            else:
+                temp_path = ChartDir + "/temp"
+                mc_file_name = []
+                with zipfileDecodingSupport(ZipFile(OriginalFilePath, 'r')) as mcz_zip:
+                    for file_name in mcz_zip.namelist():
+                        new_file_name = file_name
+                        mcz_zip.extract(new_file_name, temp_path)
+                        if file_name.endswith(".mc"):
+                            mc_file_name.append(file_name)
+                for item in mc_file_name:
+                    mc_file = os.path.join(temp_path, item)
+                    analyzeMCFile(mc_file)
 
-            GeneratedOszFile = os.path.splitext(OriginalFilePath)[0] + ".osz"
-            if os.path.exists(GeneratedOszFile):
-                os.remove(GeneratedOszFile)
-            with zipfileDecodingSupport(ZipFile(GeneratedOszFile, 'w', zipfile.ZIP_DEFLATED)) as new_osz_zip:
-                for path, dirNames, fileNames in os.walk(temp_path):
-                    fpath = path.replace(temp_path, '')
-                    for file in fileNames:
-                        if file.endswith(".mc") or file.endswith(".mc_"):continue
-                        new_osz_zip.write(os.path.join(path, file), os.path.join(fpath, file))
-            for root, dirs, files in os.walk(temp_path, topdown=False):
-                for name in files:
-                    os.remove(os.path.join(root,name))
-                for name in dirs:
-                    os.rmdir(os.path.join(root, name))
-            os.rmdir(temp_path)
-            dlg = QMessageBox()
-            dlg.setWindowTitle("提示")
-            dlg.setText(".osz文件已保存至" + GeneratedOszFile)
-            dlg.setStandardButtons(QMessageBox.Yes)
-            dlg.exec()
+                GeneratedOszFile = os.path.splitext(OriginalFilePath)[0] + ".osz"
+                if os.path.exists(GeneratedOszFile):
+                    os.remove(GeneratedOszFile)
+                with zipfileDecodingSupport(ZipFile(GeneratedOszFile, 'w', zipfile.ZIP_DEFLATED)) as new_osz_zip:
+                    for path, dirNames, fileNames in os.walk(temp_path):
+                        fpath = path.replace(temp_path, '')
+                        for file in fileNames:
+                            if file.endswith(".mc") or file.endswith(".mc_"):continue
+                            new_osz_zip.write(os.path.join(path, file), os.path.join(fpath, file))
+                for root, dirs, files in os.walk(temp_path, topdown=False):
+                    for name in files:
+                        os.remove(os.path.join(root,name))
+                    for name in dirs:
+                        os.rmdir(os.path.join(root, name))
+                os.rmdir(temp_path)
+                dlg = QMessageBox()
+                dlg.setWindowTitle("提示")
+                dlg.setText(".osz文件已保存至" + GeneratedOszFile)
+                dlg.setStandardButtons(QMessageBox.Yes)
+                dlg.exec()
 
 
     def checkBoxBNewFileClicked(self):
@@ -489,14 +487,17 @@ def generate_preview_pic(file):
             + PFDrawNotes()
     )
     preview_pic = title + " " + version + " preview.png"
-    pf.export_fold(max_height=1000).save(os.path.join(base_path, preview_pic))
-    picPath = base_path + "//" + title + " " + version +" preview.png"
+    picPath = os.path.join(base_path, preview_pic)
+    pf.export_fold(max_height=1000).save(picPath)
     return picPath
 
 def analyzeMCFile(FilePath):
-    print(FilePath)
-    with open(FilePath, "r", encoding="UTF-8") as f:
-        mcfile = json.load(f)
+    try:
+        with open(FilePath, "r", encoding="UTF-8") as f:
+            mcfile = json.load(f)
+    except:
+        with open(FilePath, "r", encoding="utf-8-sig") as f:
+            mcfile = json.load(f)
     creator = mcfile["meta"]["creator"]
     background = mcfile["meta"]["background"]
     version = mcfile["meta"]["version"]
@@ -504,9 +505,8 @@ def analyzeMCFile(FilePath):
     if mode != 0:
         dlg = QMessageBox()
         dlg.setWindowTitle("提示")
-        dlg.setText("本软件只支持编辑Key模式的Malody谱面！\nThis program only supports Malody Chart in Key Mode!")
+        dlg.setText("本软件只支持编辑Key模式的Malody谱面！\nThis program only supports Malody Chart in Key Mode!\nError at " + FilePath)
         dlg.setStandardButtons(QMessageBox.Yes)
-        dlg.setIcon(QMessageBox.warning)
         dlg.exec()
         return
     title = mcfile["meta"]["song"]["title"] # This is the Unicode Version (that allows non-ascii characters)
@@ -517,7 +517,7 @@ def analyzeMCFile(FilePath):
     Keys = mcfile["meta"]["mode_ext"]["column"]
     bpmList = mcfile["time"]
     bpmBase = mcfile["time"][0]["bpm"]
-    effectList = mcfile["effect"]
+    effectList = mcfile["effect"] if "effect" in mcfile else []
     noteList = mcfile["note"]
     sound = mcfile["note"][-1]["sound"]
     offsetMs = mcfile["note"][-1]["offset"] if "offset" in mcfile["note"][-1] else 0
