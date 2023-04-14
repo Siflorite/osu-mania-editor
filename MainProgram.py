@@ -118,17 +118,23 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         global OD
         for item in misc:
             if item.startswith("Title:"):
-                title = item.strip("Title:").strip("\n")
+                title = item.replace("Title:", "").strip("\n").replace('/',chr(ord('/')+65248)).replace('\\',chr(ord('\\')+65248))
+                title = title.replace(':', chr(ord(':')+65248)).replace('*', chr(ord('*')+65248)).replace('?', chr(ord('?')+65248)).replace('"', chr(ord('"')+65248)).replace('<', chr(ord('<')+65248)).replace('>', chr(ord('>')+65248)).replace('|', chr(ord('|')+65248))
             elif item.startswith("TitleUnicode:"):
-                titleUnicode = item.strip("TitleUnicode:").strip("\n")
+                titleUnicode = item.replace("TitleUnicode:", "").strip("\n").replace('/',chr(ord('/')+65248)).replace('\\',chr(ord('\\')+65248))
+                titleUnicode = titleUnicode.replace(':', chr(ord(':')+65248)).replace('*', chr(ord('*')+65248)).replace('?', chr(ord('?')+65248)).replace('"', chr(ord('"')+65248)).replace('<', chr(ord('<')+65248)).replace('>', chr(ord('>')+65248)).replace('|', chr(ord('|')+65248))
             elif item.startswith("Artist:"):
-                artist = item.strip("Artist:").strip("\n")
+                artist = item.replace("Artist:", "").strip("\n").replace('/',chr(ord('/')+65248)).replace('\\',chr(ord('\\')+65248))
+                artist = artist.replace(':', chr(ord(':')+65248)).replace('*', chr(ord('*')+65248)).replace('?', chr(ord('?')+65248)).replace('"', chr(ord('"')+65248)).replace('<', chr(ord('<')+65248)).replace('>', chr(ord('>')+65248)).replace('|', chr(ord('|')+65248))
             elif item.startswith("ArtistUnicode:"):
-                artistUnicode = item.strip("ArtistUnicode:").strip("\n")
+                artistUnicode = item.replace("ArtistUnicode:", "").strip("\n").replace('/',chr(ord('/')+65248)).replace('\\',chr(ord('\\')+65248))
+                artistUnicode = artistUnicode.replace(':', chr(ord(':')+65248)).replace('*', chr(ord('*')+65248)).replace('?', chr(ord('?')+65248)).replace('"', chr(ord('"')+65248)).replace('<', chr(ord('<')+65248)).replace('>', chr(ord('>')+65248)).replace('|', chr(ord('|')+65248))
             elif item.startswith("Creator:"):
-                creator = item.strip("Creator:").strip("\n")
+                creator = item.replace("Creator:","").strip("\n").replace('/',chr(ord('/')+65248)).replace('\\',chr(ord('\\')+65248))
+                creator = creator.replace(':', chr(ord(':')+65248)).replace('*', chr(ord('*')+65248)).replace('?', chr(ord('?')+65248)).replace('"', chr(ord('"')+65248)).replace('<', chr(ord('<')+65248)).replace('>', chr(ord('>')+65248)).replace('|', chr(ord('|')+65248))
             elif item.startswith("Version:"):
-                version = item.strip("Version:").strip("\n")
+                version = item.replace("Version:", "").strip("\n").replace('/',chr(ord('/')+65248)).replace('\\',chr(ord('\\')+65248))
+                version = version.replace(':', chr(ord(':')+65248)).replace('*', chr(ord('*')+65248)).replace('?', chr(ord('?')+65248)).replace('"', chr(ord('"')+65248)).replace('<', chr(ord('<')+65248)).replace('>', chr(ord('>')+65248)).replace('|', chr(ord('|')+65248))
             elif item.startswith("HPDrainRate:"):
                 HP = float(item.strip("HPDrainRate:").strip("\n"))
             elif item.startswith("CircleSize:"):
@@ -155,6 +161,12 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.label_pre.setGeometry(0, 0, pixmap.size().width(), pixmap.size().height())
         self.label_pre.setPixmap(pixmap)
         self.label_pre.show()
+
+        dlg = QMessageBox()
+        dlg.setWindowTitle("提示")
+        dlg.setText("预览图片已保存至" + previewPic)
+        dlg.setStandardButtons(QMessageBox.Yes)
+        dlg.exec()
     
     def ButtonMC2OSUClickeed(self):
         fname = QFileDialog.getOpenFileName(self, "打开mc谱面文件或mcz压缩文件", '', "Malody Chart zip Files (*.mcz);;Malody Chart Files (*.mc)", "Malody Chart zip Files (*.mcz)")
@@ -175,7 +187,12 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             mc_file_name = []
             with zipfile.ZipFile(OriginalFilePath, 'r') as mcz_zip:
                 for file_name in mcz_zip.namelist():
-                    mcz_zip.extract(file_name, temp_path)
+                    new_file_name = file_name
+                    # try:
+                    #     new_file_name = new_file_name.decode('utf-8')
+                    # except:
+                    #     new_file_name = new_file_name.decode('gbk')
+                    mcz_zip.extract(new_file_name, temp_path)
                     if file_name.endswith(".mc"):
                         mc_file_name.append(file_name)
             for item in mc_file_name:
@@ -310,9 +327,14 @@ def extractOsz(FilePath):
     osu_file_name = []
     with zipfile.ZipFile(FilePath, 'r') as osz_zip:
         for file_name in osz_zip.namelist():
-            osz_zip.extract(file_name, base_path)
-            if file_name.endswith(".osu"):
-                osu_file_name.append(file_name)
+            new_file_name = file_name
+            # try:
+            #     new_file_name = new_file_name.decode('utf-8')
+            # except:
+            #     new_file_name = new_file_name.decode('gbk')
+            osz_zip.extract(new_file_name, base_path)
+            if new_file_name.endswith(".osu"):
+                osu_file_name.append(new_file_name)
     osu_file_name_withpath = [base_path+'/'+osu_file_name[i] for i in range(len(osu_file_name))]
     return osu_file_name_withpath
 
@@ -444,8 +466,9 @@ def generate_preview_pic(file):
             + PFDrawSv(y_offset=0)
             + PFDrawNotes()
     )
-    pf.export_fold(max_height=1000).save(base_path + "/" + title + " " + version +" preview.png")
-    picPath = base_path + "/" + title + " " + version +" preview.png"
+    preview_pic = title + " " + version + " preview.png"
+    pf.export_fold(max_height=1000).save(os.path.join(base_path, preview_pic))
+    picPath = base_path + "//" + title + " " + version +" preview.png"
     return picPath
 
 def analyzeMCFile(FilePath):
